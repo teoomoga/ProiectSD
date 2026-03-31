@@ -1,0 +1,27 @@
+package DataBase;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.*;
+
+public class DatabaseManager {
+    private static final String URL =  "jdbc:sqlite:project_sd.db";
+
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL);
+    }
+
+    public static void create (){
+        String sql = "CREATE TABLE IF NOT EXISTS project (" + "id INTEGER PRIMARY KEY AUTOINCREMENT," + "path TEXT NOT NULL,"
+                    +"filename TEXT NOT NULL," + "content TEXT," + "last_modified INTEGER" +");";
+
+        try (Connection connection = getConnection(); Statement st = connection.createStatement()){
+            st.execute(sql);
+            System.out.println(("Database created successfully"));
+        } catch (SQLException e){
+            System.err.println(e.getMessage());
+        }
+    }
+}
