@@ -4,6 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import Indexer.FileIndexer;
 import Search.SearchEngine;
 
 public class Interface extends JFrame {
@@ -11,6 +13,7 @@ public class Interface extends JFrame {
     private JTextArea resultsArea;
     private JButton searchButton;
     private SearchEngine searchService;
+    private JButton selectFolder;
 
     public Interface() {
         searchService = new SearchEngine();
@@ -26,10 +29,12 @@ public class Interface extends JFrame {
 
         searchField = new JTextField(30);
         searchButton = new JButton("Search");
+        selectFolder = new JButton("Select Folder");
 
         topPanel.add(new JLabel("Keyword:"));
         topPanel.add(searchField);
         topPanel.add(searchButton);
+        topPanel.add(selectFolder);
 
         resultsArea = new JTextArea();
         resultsArea.setEditable(false);
@@ -48,6 +53,21 @@ public class Interface extends JFrame {
                 executeSearch();
             }
         };
+
+        selectFolder.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+
+            int returnVal = chooser.showOpenDialog(this);
+            if (returnVal == JFileChooser.APPROVE_OPTION) {
+                String selectedPath = chooser.getSelectedFile().getAbsolutePath();
+
+                new Thread(() -> {
+                    FileIndexer indexer = new FileIndexer();
+                    indexer.indexDirectory(selectedPath);
+                }).start();
+            }
+        });
 
         searchButton.addActionListener(searchAction);
         searchField.addActionListener(searchAction);
