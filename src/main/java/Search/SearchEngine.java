@@ -6,12 +6,13 @@ import java.sql.*;
 public class SearchEngine {
     public String search(String keyword) {
         StringBuilder sb = new StringBuilder();
-        String sql = "SELECT filename, path, content FROM project WHERE content LIKE ?";
+        String sql = "SELECT filename, path, content FROM project WHERE project MATCH ?";
 
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement p = conn.prepareStatement(sql)) {
 
-            p.setString(1, "%" + keyword + "%");
+            String searchTerms = keyword.trim().replaceAll("\\s+", " AND ");
+            p.setString(1, searchTerms);
             ResultSet rs = p.executeQuery();
 
             while (rs.next()) {
@@ -19,7 +20,20 @@ public class SearchEngine {
                 String path = rs.getString("path");
                 String content = rs.getString("content");
 
-                int index = content.toLowerCase().indexOf(keyword.toLowerCase());
+                int count = 0;
+                int pos = 0;
+                while (count < 3 && pos < content.length()) {
+                    int nextline = content.indexOf("\n", pos);
+                    if (nextline == -1) {
+                        pos = content.length();
+                        break;
+                    }
+                    pos = nextline + 1;
+                    count++;
+                }
+                String lines = content.substring(0, pos).trim();
+
+                int index = content.toLowerCase().indexOf(keyword.toLowerCase().split("\\s+")[0]);
 
                 if (index != -1) {
                     int start = index;
@@ -27,7 +41,7 @@ public class SearchEngine {
                         start--;
                     }
 
-                    int end = index + keyword.length();
+                    int end = index + keyword.split("\\s+")[0].length();
                     while (end < content.length() && ".!?\n".indexOf(content.charAt(end)) == -1) {
                         end++;
                     }
@@ -38,7 +52,8 @@ public class SearchEngine {
 
                     sb.append("File: ").append(fileName).append("\n");
                     sb.append("Sentence: ").append(preview).append("\n");
-                    sb.append("Path: ").append(path).append("\n\n");
+                    sb.append("Path: ").append(path).append("\n");
+                    sb.append("Preview: ").append(lines).append("\n\n");
                 }
             }
 

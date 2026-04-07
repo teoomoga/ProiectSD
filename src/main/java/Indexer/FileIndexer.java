@@ -3,16 +3,39 @@ package Indexer;
 import DataBase.DatabaseManager;
 import java.io.IOException;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.*;
 
 public class FileIndexer {
+    private int filesFound = 0;
+    private int filesInserted = 0;
+    private int filesUpdated = 0;
 
     public void indexDirectory(String folderPath) {
+        filesFound = 0;
+        filesInserted = 0;
+        filesUpdated = 0;
+
         try {
             Files.walk(Paths.get(folderPath))
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.toString().endsWith(".txt"))
-                    .forEach(this::saveFileToDb);
+                    .filter(p -> {
+                        try {
+                            return Files.isRegularFile(p) && p.toString().endsWith(".txt");
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .forEach(p -> {
+                        filesFound++;
+                        saveFileToDb(p);
+                    });
+
+            cleanup(folderPath);
+
+            System.out.println("Files " + filesFound);
+            System.out.println("Files inserted" + filesInserted);
+            System.out.println("files updated " + filesUpdated);
+
         } catch (IOException e) {
             System.err.println(e.getMessage());
         }
@@ -33,10 +56,12 @@ public class FileIndexer {
 
                     if (lastModifiedOnDisk > lastModifiedInDb) {
                         updateDb(connection, path, lastModifiedOnDisk);
+                        filesUpdated++;
                         System.out.println("Update: " + path.getFileName());
                     }
                 } else {
                     insertIntoDb(connection, path, lastModifiedOnDisk);
+                    filesInserted++;
                     System.out.println("Insert " + path.getFileName());
                 }
             }
@@ -63,6 +88,29 @@ public class FileIndexer {
             p.setLong(2, lastModified);
             p.setString(3, path.toString());
             p.executeUpdate();
+        }
+    }
+
+    public void cleanup(String folderPath) {
+        String selectSql = "SELECT path FROM project";
+        String deleteSql = "DELETE FROM project WHERE path = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(selectSql)) {
+
+            while (rs.next()) {
+                String pathInDb = rs.getString("path");
+                if (!Files.exists(Paths.get(pathInDb))) {
+                    try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
+                        ps.setString(1, pathInDb);
+                        ps.executeUpdate();
+                        System.out.println("Removed: " + pathInDb);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         }
     }
 }
