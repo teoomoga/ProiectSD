@@ -14,8 +14,8 @@ public class DatabaseManager {
     }
 
     public static void create (){
-        String sql = "CREATE TABLE IF NOT EXISTS project (" + "id INTEGER PRIMARY KEY AUTOINCREMENT," + "path TEXT NOT NULL,"
-                    +"filename TEXT NOT NULL," + "content TEXT," + "last_modified INTEGER" +");";
+        String sql = "CREATE virtual TABLE IF NOT EXISTS project using fts5(" + "path UNINDEXED, "
+                    +"filename, " + "content, " + "last_modified UNINDEXED" + ");";
 
         try (Connection connection = getConnection(); Statement st = connection.createStatement()){
             st.execute(sql);
