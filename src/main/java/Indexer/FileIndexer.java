@@ -10,24 +10,26 @@ public class FileIndexer {
     private int filesFound = 0;
     private int filesInserted = 0;
     private int filesUpdated = 0;
+    private int filesNoAccess = 0;
 
     public void indexDirectory(String folderPath) {
         filesFound = 0;
         filesInserted = 0;
         filesUpdated = 0;
+        filesNoAccess = 0;
 
         try {
             Files.walk(Paths.get(folderPath))
-                    .filter(p -> {
-                        try {
-                            return Files.isRegularFile(p) && p.toString().endsWith(".txt");
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    })
+                    .filter(p ->
+                        Files.isRegularFile(p) && p.toString().endsWith(".txt"))
                     .forEach(p -> {
-                        filesFound++;
-                        saveFileToDb(p);
+                        try {
+                            filesFound++;
+                            saveFileToDb(p);
+                        } catch (Exception e) {
+                            filesNoAccess++;
+                            System.err.println(e.getMessage());
+                        }
                     });
 
             cleanup(folderPath);
@@ -35,13 +37,14 @@ public class FileIndexer {
             System.out.println("Files " + filesFound);
             System.out.println("Files inserted" + filesInserted);
             System.out.println("files updated " + filesUpdated);
+            System.out.println("files no-access " + filesNoAccess);
 
         } catch (IOException e) {
             System.err.println(e.getMessage());
         }
     }
 
-    private void saveFileToDb(Path path) {
+    private void saveFileToDb(Path path) throws Exception {
         try (Connection connection = DatabaseManager.getConnection()) {
             long lastModifiedOnDisk = Files.getLastModifiedTime(path).toMillis();
             String filePath = path.toString();
@@ -65,8 +68,6 @@ public class FileIndexer {
                     System.out.println("Insert " + path.getFileName());
                 }
             }
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
         }
     }
 
